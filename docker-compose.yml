@@ -1,0 +1,22 @@
+version: '3'
+services:
+  python3:
+    restart: always
+    build: .
+    # build にカレントディレクトリを指定しています。
+    # docker-compose build 時にカレントディレクトリにある Dockerfile が参照されます。
+    container_name: 'python3'
+    # container_name には任意のコンテナ名を指定してください。
+    # 後ほど使用するコンテナ実行コマンド docker -exec -it {コンテナ名} の コンテナ名となります。
+    working_dir: '/root'
+    # working_dir は Dockerfile の WORKDIR と同じ階層をしてしています。
+    # 後述する docker exec -it python3 {コマンドライン} で コンテナ内のコマンドを実行した時のデフォルト階層になります。
+    tty: true
+    volumes:
+      - .:/root
+    # データのマウント 特にdata以下は馬鹿でかいのでマウントしないと無理
+    # volumes にはローカルのディレクトリ(.)を /root にマウントする記述をしています。
+    # マウントするとローカルの(.)配下のファイルが コンテナ から参照されるようになります。
+    ports: 
+      - '8501:8501'
+    # コンテナとPCを繋ぐ これがないと外部からwebページが確認できない
