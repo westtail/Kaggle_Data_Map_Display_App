@@ -1,6 +1,6 @@
 *.png
 *.jpg
-*.csv
+#*.csv
 *.zip
 venv 
 
