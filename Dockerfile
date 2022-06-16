@@ -26,4 +26,4 @@ RUN pip install -r requirements.txt
 # 必要なライブラリのインストール
 
 # アプリ起動
-CMD ["python3", "streamlit", "run", "app.py"]
+# CMD ["python3", "streamlit", "run", "app.py"]
