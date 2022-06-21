@@ -1,7 +1,7 @@
 # コンペ用のマップ表示型アプリケーション
 GUIやデプロイには[streamlit](https://streamlit.io/)を用いています
 コンペのページhttps://www.kaggle.com/competitions/smartphone-decimeter-2022
-アプリを動かす際のデータセットページhttps://www.kaggle.com/datasets/westtail/groundtruthdatasmartphonedecimeter2022
+アプリを動かす際のデータセットページhttps://www.kaggle.com/datasets/westtail/ground-truth-and-gnss-data
 
 # TODO
 * データの読み取り機能
@@ -18,6 +18,9 @@ GUIやデプロイには[streamlit](https://streamlit.io/)を用いています
 .
 ├── app.py 
 ├── requirements.txt
+├── docker-compose.yml
+├── Dockerfile
+├── data
 └── README.md
 
 ```
@@ -55,10 +58,10 @@ dataフォルダーにデータを用意する必要がある
 
 手動でダウンロードするか、kaggle apiでダウンロードすることもできる
 
-https://www.kaggle.com/datasets/westtail/groundtruthdatasmartphonedecimeter2022?sort=votes
+https://www.kaggle.com/datasets/westtail/ground-truth-and-gnss-data
 ```
 cd data
-kaggle datasets download -d westtail/groundtruthdatasmartphonedecimeter2022
+kaggle datasets download -d westtail/ground-truth-and-gnss-data
 unzip archive.zip
 ```
 
