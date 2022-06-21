@@ -1,7 +1,7 @@
 # コンペ用のマップ表示型アプリケーション
-GUIやデプロイには[streamlit](https://streamlit.io/)を用いています
-コンペのページhttps://www.kaggle.com/competitions/smartphone-decimeter-2022
-アプリを動かす際のデータセットページhttps://www.kaggle.com/datasets/westtail/ground-truth-and-gnss-data
+GUIやデプロイには[streamlit](https://streamlit.io/)を用いています. 
+コンペのページhttps://www.kaggle.com/competitions/smartphone-decimeter-2022. 
+アプリを動かす際のデータセットページhttps://www.kaggle.com/datasets/westtail/ground-truth-and-gnss-data. 
 
 # TODO
 * データの読み取り機能
