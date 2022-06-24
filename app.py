@@ -169,27 +169,26 @@ def main():
     for file in files:
         name.append(file[15:-7])
 
-    #print(name)
-
     # サイドバー
     st.sidebar.subheader("input")
-    selected = st.sidebar.selectbox(
-        'chose root ：',
-        name
-    )
+
+    # ボタンを押すと切り替え
+    methods = st.sidebar.radio("Choose a search method",('text', 'list'))
+
+    if methods == "text":
+        selected = st.sidebar.text_input('input tripID', '2020-05-15-US-MTV-1-GooglePixel4XL')
+    else:
+        selected = st.sidebar.selectbox(
+            'chose root ：',
+            name
+        )
 
     st.header(selected)
 
     plot_gt_vs_baseline(selected) #ベースラインの表示
 
-    #　座標データの取得
-    #select_name = "./data/results/" + selected + "_gt.csv"
-    #data = load_data(select_name)
-    #map_data = data[["LatitudeDegrees","LongitudeDegrees"]].to_numpy()
-    #map = pd.DataFrame(
-    #map_data,
-    #columns=['lat', 'lon'])
-    #st.map(map)
+    st.text('Code used for baseline https://www.kaggle.com/code/robikscube/smartphone-competition-2022-twitch-stream')
+
 
 if __name__ == "__main__":
     main()
