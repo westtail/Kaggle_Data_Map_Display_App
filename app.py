@@ -1,5 +1,5 @@
 import streamlit as st
-#import streamlit.components.v1 as components
+import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
 import matplotlib.pylab as plt
@@ -10,6 +10,8 @@ from tqdm.notebook import tqdm
 from scipy.interpolate import InterpolatedUnivariateSpline
 
 # https://www.kaggle.com/code/robikscube/smartphone-competition-2022-twitch-stream
+
+KEY = st.secrets["google_map_api_key"]
 
 WGS84_SEMI_MAJOR_AXIS = 6378137.0
 WGS84_SEMI_MINOR_AXIS = 6356752.314245
@@ -191,13 +193,17 @@ def main():
     link = '[Smartphone Competition 2022 [Twitch Stream]](https://www.kaggle.com/code/robikscube/smartphone-competition-2022-twitch-stream)'
     st.text('Code used for baseline ')
     st.markdown(link, unsafe_allow_html=True)
+    test = "35.473183,138.57476399999996"
 
-    #components.html(
-    #    """
-    #<iframe src="https://www.google.com/maps/embed?pb=!4v1656322779546!6m8!1m7!1sCAoSLEFGMVFpcE9vZ3VuMkZhb2tLY0w4cWdSb2FYbVluQzBRaENNOE9ueDZ3Y2RG!2m2!1d35.63570480000001!2d139.766278!3f354.57364!4f1.2379459999999938!5f0.7820865974627469" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
-    #""",
-    #height=500
-    #)
+    components.html(
+    """<iframe src="https://www.google.com/maps/embed/v1/streetview?key="""+ KEY + 
+        """&location=""" + test + """
+        &heading=210
+        &pitch=10
+        &fov=35" 
+        width="600" height="450" style="border:0;" allowfullscreen></iframe>"""
+    ,height=500
+    )
 
 if __name__ == "__main__":
     main()
