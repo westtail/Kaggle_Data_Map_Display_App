@@ -8,6 +8,7 @@ import glob
 from dataclasses import dataclass
 from tqdm.notebook import tqdm
 from scipy.interpolate import InterpolatedUnivariateSpline
+import datetime
 
 # https://www.kaggle.com/code/robikscube/smartphone-competition-2022-twitch-stream
 
@@ -158,6 +159,17 @@ def plot_gt_vs_baseline(tripId):
     )
 
 
+def plot_gt(clipping_data):
+    # Plotting the route
+    visualize_traffic(
+        clipping_data,
+        lat_col="LatitudeDegrees",
+        lon_col="LongitudeDegrees",
+        color_col="isGT",
+        zoom=10,
+    )
+
+
 def load_data(select):
     #print(select)
     data = pd.read_csv(select)
@@ -165,7 +177,7 @@ def load_data(select):
     return data
 
 def main():
-    st.title('Smartphone Competition 2022  show map')
+    st.title('Smartphone Competition 2022')
 
     files = glob.glob('./data/results/*_gt.csv')
     name = []
@@ -187,23 +199,59 @@ def main():
         )
 
     st.header(selected)
-
+    st.subheader('gt + gnss')
     plot_gt_vs_baseline(selected) #ベースラインの表示
+    
+
+    # データ取り出し
+    gt = pd.read_csv(f"./data/results/{selected}_gt.csv")
+    p = pd.DataFrame(
+        {
+            "tripId": selected,
+            "UnixTimeMillis": gt["UnixTimeMillis"].values,
+            "LatitudeDegrees": gt["LatitudeDegrees"].values,
+            "LongitudeDegrees": gt["LongitudeDegrees"].values,
+            "isGT":True
+        }
+    )
+    gt["tripId"] = selected
+    gt["isGT"] = True
+    gt_data = gt[p.columns].reset_index(drop=True).copy()
+
+    mod = gt_data["UnixTimeMillis"][0] % 1000
+    first = int(gt_data["UnixTimeMillis"][0] / 1000)
+    end = int(gt_data["UnixTimeMillis"][len(gt_data)-1] / 1000)
+
+    st.subheader('gt')
+    time = st.slider(
+        'Please select unix time',
+        min_value=first,
+        max_value=end,
+        value=first,
+    )
+    data_time = datetime.datetime.fromtimestamp(time)
+    st.write('Time: ', data_time)
+
+    select_time = gt_data[gt_data["UnixTimeMillis"] == (time * 1000 + mod)]
+    select_time_x_y = str(select_time["LatitudeDegrees"].values[0]) + "," + str(select_time["LongitudeDegrees"].values[0])
+    clipping_data = gt_data[gt_data["UnixTimeMillis"] <= (time * 1000 + mod)]
+
+    plot_gt(clipping_data) #正解のみの表示
+
+    components.html(
+    """<iframe src="https://www.google.com/maps/embed/v1/streetview?key="""+ KEY + 
+        """&location=""" + select_time_x_y + """
+        &heading=210
+        &pitch=10
+        &fov=35" 
+        width="800" height="600" style="border:0;" allowfullscreen></iframe>"""
+    ,height=600,
+    width=800
+    )
 
     link = '[Smartphone Competition 2022 [Twitch Stream]](https://www.kaggle.com/code/robikscube/smartphone-competition-2022-twitch-stream)'
     st.text('Code used for baseline ')
     st.markdown(link, unsafe_allow_html=True)
-    test = "35.473183,138.57476399999996"
-
-    components.html(
-    """<iframe src="https://www.google.com/maps/embed/v1/streetview?key="""+ KEY + 
-        """&location=""" + test + """
-        &heading=210
-        &pitch=10
-        &fov=35" 
-        width="600" height="450" style="border:0;" allowfullscreen></iframe>"""
-    ,height=500
-    )
 
 if __name__ == "__main__":
     main()
