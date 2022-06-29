@@ -132,8 +132,8 @@ def ecef_to_lat_lng(tripID, gnss_df, UnixTimeMillis):
 
 # ベースラインを表示
 def plot_gt_vs_baseline(tripId):
-    gt = pd.read_csv(f"./data/results/{tripId}_gt.csv")
-    gnss = pd.read_csv(f"./data/results/{tripId}_gnss.csv")
+    gt = pd.read_csv(f"./data/train/{tripId}_gt.csv")
+    gnss = pd.read_csv(f"./data/train/{tripId}_gnss.csv")
 
     # グランドトゥルースとベースライン予測の組み合わせ
     baseline = ecef_to_lat_lng(tripId, gnss, gt["UnixTimeMillis"].values)
@@ -179,7 +179,7 @@ def load_data(select):
 def main():
     st.title('Smartphone Competition 2022')
 
-    files = glob.glob('./data/results/*_gt.csv')
+    files = glob.glob('./data/train/*_gt.csv')
     name = []
     for file in files:
         name.append(file[15:-7])
@@ -204,7 +204,7 @@ def main():
     
 
     # データ取り出し
-    gt = pd.read_csv(f"./data/results/{selected}_gt.csv")
+    gt = pd.read_csv(f"./data/train/{selected}_gt.csv")
     p = pd.DataFrame(
         {
             "tripId": selected,
