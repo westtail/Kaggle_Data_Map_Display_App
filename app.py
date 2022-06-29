@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pylab as plt
 import plotly.express as px
 import glob
+import math
 from dataclasses import dataclass
 from tqdm.notebook import tqdm
 from scipy.interpolate import InterpolatedUnivariateSpline
@@ -93,6 +94,32 @@ def visualize_traffic(
     fig.update_layout(title_text="GPS trafic")
     st.plotly_chart(fig)
 
+def gnss_to_lat_lng(tripID, gnss_df):
+    ecef_columns = [
+        "WlsPositionXEcefMeters",
+        "WlsPositionYEcefMeters",
+        "WlsPositionZEcefMeters",
+    ]
+    columns = ["utcTimeMillis"] + ecef_columns
+    ecef_df = (
+        gnss_df.drop_duplicates(subset="utcTimeMillis")[columns]
+        .dropna()
+        .reset_index(drop=True)
+    )
+    ecef = ECEF.from_numpy(ecef_df[ecef_columns].to_numpy())
+    blh = ECEF_to_BLH(ecef)
+    TIME = ecef_df["utcTimeMillis"].to_numpy()
+    lat = InterpolatedUnivariateSpline(TIME, blh.lat, ext=3)(TIME)
+    lng = InterpolatedUnivariateSpline(TIME, blh.lng, ext=3)(TIME)
+    return pd.DataFrame(
+        {
+            "tripId": tripID,
+            "UnixTimeMillis": TIME,
+            "LatitudeDegrees": np.degrees(lat),
+            "LongitudeDegrees": np.degrees(lng),
+        }
+    )
+
 def ecef_to_lat_lng(tripID, gnss_df, UnixTimeMillis):
     # xyz値のカラム
     ecef_columns = [
@@ -103,12 +130,15 @@ def ecef_to_lat_lng(tripID, gnss_df, UnixTimeMillis):
     # カラム設定
     columns = ["utcTimeMillis"] + ecef_columns
 
+    #print(len(gnss_df))
+    #print(UnixTimeMillis,len(UnixTimeMillis))
     # gnssデータの定義
     ecef_df = (
         gnss_df.drop_duplicates(subset="utcTimeMillis")[columns]
         .dropna()
         .reset_index(drop=True)
     )
+    #print(ecef_df,len(ecef_df))
 
     # numpy 変換
     ecef = ECEF.from_numpy(ecef_df[ecef_columns].to_numpy())
@@ -117,6 +147,7 @@ def ecef_to_lat_lng(tripID, gnss_df, UnixTimeMillis):
 
     # 時間をnumpy変換
     TIME = ecef_df["utcTimeMillis"].to_numpy()
+    #print("time", TIME,len(TIME))
 
     # v1 次元スプライン補間曲線を得られる関数
     lat = InterpolatedUnivariateSpline(TIME, blh.lat, ext=3)(UnixTimeMillis)
@@ -132,8 +163,8 @@ def ecef_to_lat_lng(tripID, gnss_df, UnixTimeMillis):
 
 # ベースラインを表示
 def plot_gt_vs_baseline(tripId):
-    gt = pd.read_csv(f"./data/results/{tripId}_gt.csv")
-    gnss = pd.read_csv(f"./data/results/{tripId}_gnss.csv")
+    gt = pd.read_csv(f"./data/train/{tripId}_gt.csv")
+    gnss = pd.read_csv(f"./data/train/{tripId}_gnss.csv")
 
     # グランドトゥルースとベースライン予測の組み合わせ
     baseline = ecef_to_lat_lng(tripId, gnss, gt["UnixTimeMillis"].values)
@@ -171,7 +202,6 @@ def plot_gt(clipping_data):
 
 
 def load_data(select):
-    #print(select)
     data = pd.read_csv(select)
     data["date"] = pd.to_datetime(data["UnixTimeMillis"], unit='ms')
     return data
@@ -179,75 +209,133 @@ def load_data(select):
 def main():
     st.title('Smartphone Competition 2022')
 
-    files = glob.glob('./data/results/*_gt.csv')
-    name = []
-    for file in files:
-        name.append(file[15:-7])
+    # データの名前を全て取得 キャッシュ候補
+    train_files = glob.glob('./data/train/*_gt.csv')
+    test_files = glob.glob('./data/test/*_gnss.csv')
+    train_name = []
+    test_name = []
+    for file in train_files:
+        train_name.append(file[13:-7])
+    for file in test_files:
+        test_name.append(file[12:-9])
 
     # サイドバー
     st.sidebar.subheader("input")
 
-    # ボタンを押すと切り替え
-    methods = st.sidebar.radio("Choose a search method",('text', 'list'))
+    data_type = st.sidebar.radio("Choose data type",('train', 'test'))
+    st.sidebar.write('data_type: ', data_type)
 
-    if methods == "text":
-        selected = st.sidebar.text_input('input tripID', '2020-05-15-US-MTV-1-GooglePixel4XL')
-    else:
-        selected = st.sidebar.selectbox(
-            'chose root ：',
-            name
-        )
-
-    st.header(selected)
-    st.subheader('gt + gnss')
-    plot_gt_vs_baseline(selected) #ベースラインの表示
+    # テキスト入力かリスト入力かを選択
+    search_type = st.sidebar.radio("Choose a search type",('text', 'list'))
+    st.sidebar.write('search_type: ', search_type)
     
+    st.write('debug', train_name[0])
 
-    # データ取り出し
-    gt = pd.read_csv(f"./data/results/{selected}_gt.csv")
-    p = pd.DataFrame(
-        {
-            "tripId": selected,
-            "UnixTimeMillis": gt["UnixTimeMillis"].values,
-            "LatitudeDegrees": gt["LatitudeDegrees"].values,
-            "LongitudeDegrees": gt["LongitudeDegrees"].values,
-            "isGT":True
-        }
-    )
-    gt["tripId"] = selected
-    gt["isGT"] = True
-    gt_data = gt[p.columns].reset_index(drop=True).copy()
+    if search_type == "text":
+        if data_type == "train":
+            selected = st.sidebar.text_input('input tripID', train_name[0])
+        else:
+            selected = st.sidebar.text_input('input tripID', test_name[0])
+    else:
+        if data_type == "train":
+            selected = st.sidebar.selectbox(
+            'chose root ：',
+            train_name
+            )    
+        else:
+            selected = st.sidebar.selectbox(
+            'chose root ：',
+            test_name
+            )
 
-    mod = gt_data["UnixTimeMillis"][0] % 1000
-    first = int(gt_data["UnixTimeMillis"][0] / 1000)
-    end = int(gt_data["UnixTimeMillis"][len(gt_data)-1] / 1000)
+    st.header(data_type)
+    st.header(selected)
 
-    st.subheader('gt')
-    time = st.slider(
-        'Please select unix time',
-        min_value=first,
-        max_value=end,
-        value=first,
-    )
-    data_time = datetime.datetime.fromtimestamp(time)
-    st.write('Time: ', data_time)
+    if data_type == "train":
+        st.subheader('gt + gnss')
+        plot_gt_vs_baseline(selected) #ベースラインと正解の表示
 
-    select_time = gt_data[gt_data["UnixTimeMillis"] == (time * 1000 + mod)]
-    select_time_x_y = str(select_time["LatitudeDegrees"].values[0]) + "," + str(select_time["LongitudeDegrees"].values[0])
-    clipping_data = gt_data[gt_data["UnixTimeMillis"] <= (time * 1000 + mod)]
+        # データ取り出し
+        gt = pd.read_csv(f"./data/train/{selected}_gt.csv")
+        p = pd.DataFrame(
+            {
+                "tripId": selected,
+                "UnixTimeMillis": gt["UnixTimeMillis"].values,
+                "LatitudeDegrees": gt["LatitudeDegrees"].values,
+                "LongitudeDegrees": gt["LongitudeDegrees"].values,
+                "isGT":True
+            }
+        )
+        gt["tripId"] = selected
+        gt["isGT"] = True
+        gt_data = gt[p.columns].reset_index(drop=True).copy()
 
-    plot_gt(clipping_data) #正解のみの表示
+        mod = gt_data["UnixTimeMillis"][0] % 1000
+        first = int(gt_data["UnixTimeMillis"][0] / 1000)
+        end = int(gt_data["UnixTimeMillis"][len(gt_data)-1] / 1000)
 
-    components.html(
-    """<iframe src="https://www.google.com/maps/embed/v1/streetview?key="""+ KEY + 
-        """&location=""" + select_time_x_y + """
-        &heading=210
-        &pitch=10
-        &fov=35" 
-        width="800" height="600" style="border:0;" allowfullscreen></iframe>"""
-    ,height=600,
-    width=800
-    )
+        st.subheader('gt')
+        time = st.slider(
+            'Please select unix time',
+            min_value=first,
+            max_value=end,
+            value=first,
+        )
+        data_time = datetime.datetime.fromtimestamp(time)
+        st.write('Time: ', data_time)
+
+        select_time = gt_data[gt_data["UnixTimeMillis"] == (time * 1000 + mod)]
+        select_time_x_y = str(select_time["LatitudeDegrees"].values[0]) + "," + str(select_time["LongitudeDegrees"].values[0])
+        clipping_data = gt_data[gt_data["UnixTimeMillis"] <= (time * 1000 + mod)]
+
+        plot_gt(clipping_data) #正解のみの表示
+
+        components.html(
+        """<iframe src="https://www.google.com/maps/embed/v1/streetview?key="""+ KEY + 
+            """&location=""" + select_time_x_y + """
+            &heading=210
+            &pitch=10
+            &fov=35" 
+            width="800" height="600" style="border:0;" allowfullscreen></iframe>"""
+        ,height=600,
+        width=800
+        )
+    else:
+        st.subheader('gnss')
+        # データ取り出し
+        gnss = pd.read_csv(f"./data/test/{selected}_gnss.csv")
+        gnss_data = gnss_to_lat_lng(selected, gnss)
+        gnss_data["isGT"] = False
+        gnss_data["UnixTimeMillis"] = gnss_data["UnixTimeMillis"].div(1000).round()
+
+        first = int(gnss_data["UnixTimeMillis"][0])
+        end = int(gnss_data["UnixTimeMillis"][len(gnss_data)-1])
+
+        time = st.slider(
+            'Please select unix time',
+            min_value=first,
+            max_value=end,
+            value=first,
+        )
+        data_time = datetime.datetime.fromtimestamp(time)
+        st.write('Time: ', data_time)
+
+        select_time = gnss_data[gnss_data["UnixTimeMillis"] == time]
+        select_time_x_y = str(select_time["LatitudeDegrees"].values[0]) + "," + str(select_time["LongitudeDegrees"].values[0])
+        clipping_data = gnss_data[gnss_data["UnixTimeMillis"] <= time]
+
+        plot_gt(clipping_data) #正解のみの表示
+
+        components.html(
+        """<iframe src="https://www.google.com/maps/embed/v1/streetview?key="""+ KEY + 
+            """&location=""" + select_time_x_y + """
+            &heading=210
+            &pitch=10
+            &fov=35" 
+            width="800" height="600" style="border:0;" allowfullscreen></iframe>"""
+        ,height=600,
+        width=800
+        )
 
     link = '[Smartphone Competition 2022 [Twitch Stream]](https://www.kaggle.com/code/robikscube/smartphone-competition-2022-twitch-stream)'
     st.text('Code used for baseline ')
