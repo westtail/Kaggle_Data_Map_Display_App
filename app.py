@@ -228,8 +228,6 @@ def main():
     # テキスト入力かリスト入力かを選択
     search_type = st.sidebar.radio("Choose a search type",('text', 'list'))
     st.sidebar.write('search_type: ', search_type)
-    
-    st.write('debug', train_name[0])
 
     if search_type == "text":
         if data_type == "train":
@@ -279,6 +277,7 @@ def main():
         st.write('search_type: ', search_type)
 
         if search_time=="text":
+            st.text('If you want to enter unit time, delete "ms".Example Original data 1619650832999 Input data 1619650832')
             time = st.text_input('input unixtime', first)
         else:
             time = st.slider(
@@ -323,6 +322,7 @@ def main():
         st.write('search_type: ', search_type)
 
         if search_time=="text":
+            st.text('If you want to enter unit time, delete "ms".Example Original data 1619650832999 Input data 1619650832')
             time = st.text_input('input unixtime', first)
         else:
             time = st.slider(
