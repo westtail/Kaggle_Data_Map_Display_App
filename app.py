@@ -275,12 +275,20 @@ def main():
         end = int(gt_data["UnixTimeMillis"][len(gt_data)-1] / 1000)
 
         st.subheader('gt')
-        time = st.slider(
-            'Please select unix time',
-            min_value=first,
-            max_value=end,
-            value=first,
-        )
+        search_time = st.radio("Choose a search type",('text', 'slider'))
+        st.write('search_type: ', search_type)
+
+        if search_time=="text":
+            time = st.text_input('input unixtime', first)
+        else:
+            time = st.slider(
+                'Please select unix time',
+                min_value=first,
+                max_value=end,
+                value=first,
+            )
+
+        time = int(time)
         data_time = datetime.datetime.fromtimestamp(time)
         st.write('Time: ', data_time)
 
@@ -311,12 +319,20 @@ def main():
         first = int(gnss_data["UnixTimeMillis"][0])
         end = int(gnss_data["UnixTimeMillis"][len(gnss_data)-1])
 
-        time = st.slider(
-            'Please select unix time',
-            min_value=first,
-            max_value=end,
-            value=first,
-        )
+        search_time = st.radio("Choose a search type",('text', 'slider'))
+        st.write('search_type: ', search_type)
+
+        if search_time=="text":
+            time = st.text_input('input unixtime', first)
+        else:
+            time = st.slider(
+                'Please select unix time',
+                min_value=first,
+                max_value=end,
+                value=first,
+            )
+
+        time = int(time)
         data_time = datetime.datetime.fromtimestamp(time)
         st.write('Time: ', data_time)
 
