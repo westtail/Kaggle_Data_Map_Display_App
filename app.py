@@ -215,9 +215,9 @@ def main():
     train_name = []
     test_name = []
     for file in train_files:
-        train_name.append(file[13:-7])
+        train_name.append(file[13:-7].replace('_', '/'))
     for file in test_files:
-        test_name.append(file[12:-9])
+        test_name.append(file[12:-9].replace('_', '/'))
 
     # サイドバー
     st.sidebar.subheader("input")
@@ -245,6 +245,8 @@ def main():
             'chose root ：',
             test_name
             )
+    # / を _に変換
+    selected = selected.replace('/', '_')
 
     st.header(data_type)
     st.header(selected)
