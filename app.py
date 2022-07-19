@@ -249,6 +249,7 @@ def main():
                 'chose root ：',
                 test_name
                 )
+        selected = selected.replace('/', '_')
 
         st.header(data_type)
         st.header(selected)
