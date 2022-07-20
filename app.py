@@ -222,142 +222,144 @@ def main():
     # サイドバー
     st.sidebar.subheader("input")
 
-    data_type = st.sidebar.radio("Choose data type",('train', 'test'))
+    data_type = st.sidebar.radio("Choose data type",('train', 'test','file'))
     st.sidebar.write('data_type: ', data_type)
 
-    # テキスト入力かリスト入力かを選択
-    search_type = st.sidebar.radio("Choose a search type",('text', 'list'))
-    st.sidebar.write('search_type: ', search_type)
-
-    if search_type == "text":
-        if data_type == "train":
-            selected = st.sidebar.text_input('input tripID', train_name[0])
-        else:
-            selected = st.sidebar.text_input('input tripID', test_name[0])
+    if data_type == 'file':
+        # ファイル提出
+        st.file_uploader("ファイルアップロード", type='csv')
     else:
+        # テキスト入力かリスト入力かを選択
+        search_type = st.sidebar.radio("Choose a search type",('text', 'list'))
+        st.sidebar.write('search_type: ', search_type)
+
+        if search_type == "text":
+            if data_type == "train":
+                selected = st.sidebar.text_input('input tripID', train_name[0])
+            else:
+                selected = st.sidebar.text_input('input tripID', test_name[0])
+        else:
+            if data_type == "train":
+                selected = st.sidebar.selectbox(
+                'chose root ：',
+                train_name
+                )    
+            else:
+                selected = st.sidebar.selectbox(
+                'chose root ：',
+                test_name
+                )
+
+        st.header(data_type)
+        st.header(selected)
+
         if data_type == "train":
-            selected = st.sidebar.selectbox(
-            'chose root ：',
-            train_name
-            )    
-        else:
-            selected = st.sidebar.selectbox(
-            'chose root ：',
-            test_name
+            st.subheader('gt + gnss')
+            plot_gt_vs_baseline(selected) #ベースラインと正解の表示
+    
+            # データ取り出し
+            gt = pd.read_csv(f"./data/train/{selected}_gt.csv")
+            p = pd.DataFrame(
+                {
+                    "tripId": selected,
+                    "UnixTimeMillis": gt["UnixTimeMillis"].values,
+                    "LatitudeDegrees": gt["LatitudeDegrees"].values,
+                    "LongitudeDegrees": gt["LongitudeDegrees"].values,
+                    "isGT":True
+                }
             )
-    # / を _に変換
-    selected = selected.replace('/', '_')
-
-    st.header(data_type)
-    st.header(selected)
-
-    if data_type == "train":
-        st.subheader('gt + gnss')
-        plot_gt_vs_baseline(selected) #ベースラインと正解の表示
-
-        # データ取り出し
-        gt = pd.read_csv(f"./data/train/{selected}_gt.csv")
-        p = pd.DataFrame(
-            {
-                "tripId": selected,
-                "UnixTimeMillis": gt["UnixTimeMillis"].values,
-                "LatitudeDegrees": gt["LatitudeDegrees"].values,
-                "LongitudeDegrees": gt["LongitudeDegrees"].values,
-                "isGT":True
-            }
-        )
-        gt["tripId"] = selected
-        gt["isGT"] = True
-        gt_data = gt[p.columns].reset_index(drop=True).copy()
-
-        mod = gt_data["UnixTimeMillis"][0] % 1000
-        first = int(gt_data["UnixTimeMillis"][0] / 1000)
-        end = int(gt_data["UnixTimeMillis"][len(gt_data)-1] / 1000)
-
-        st.subheader('gt')
-        search_time = st.radio("Choose a search type",('text', 'slider'))
-        st.write('search_type: ', search_type)
-
-        if search_time=="text":
-            st.text('If you want to enter unit time, delete "ms".Example Original data 1619650832999 Input data 1619650832')
-            time = st.text_input('input unixtime', first)
-        else:
-            time = st.slider(
-                'Please select unix time',
-                min_value=first,
-                max_value=end,
-                value=first,
+            gt["tripId"] = selected
+            gt["isGT"] = True
+            gt_data = gt[p.columns].reset_index(drop=True).copy()
+    
+            mod = gt_data["UnixTimeMillis"][0] % 1000
+            first = int(gt_data["UnixTimeMillis"][0] / 1000)
+            end = int(gt_data["UnixTimeMillis"][len(gt_data)-1] / 1000)
+    
+            st.subheader('gt')
+            search_time = st.radio("Choose a search type",('text', 'slider'))
+            st.write('search_type: ', search_type)
+    
+            if search_time=="text":
+                st.text('If you want to enter unit time, delete "ms".Example Original data 1619650832999 Input data 1619650832')
+                time = st.text_input('input unixtime', first)
+            else:
+                time = st.slider(
+                    'Please select unix time',
+                    min_value=first,
+                    max_value=end,
+                    value=first,
+                )
+    
+            time = int(time)
+            data_time = datetime.datetime.fromtimestamp(time)
+            st.write('Time: ', data_time)
+    
+            select_time = gt_data[gt_data["UnixTimeMillis"] == (time * 1000 + mod)]
+            select_time_x_y = str(select_time["LatitudeDegrees"].values[0]) + "," + str(select_time["LongitudeDegrees"].values[0])
+            clipping_data = gt_data[gt_data["UnixTimeMillis"] <= (time * 1000 + mod)]
+    
+            plot_gt(clipping_data) #正解のみの表示
+    
+            components.html(
+            """<iframe src="https://www.google.com/maps/embed/v1/streetview?key="""+ KEY + 
+                """&location=""" + select_time_x_y + """
+                &heading=210
+                &pitch=10
+                &fov=35" 
+                width="800" height="600" style="border:0;" allowfullscreen></iframe>"""
+            ,height=600,
+            width=800
             )
-
-        time = int(time)
-        data_time = datetime.datetime.fromtimestamp(time)
-        st.write('Time: ', data_time)
-
-        select_time = gt_data[gt_data["UnixTimeMillis"] == (time * 1000 + mod)]
-        select_time_x_y = str(select_time["LatitudeDegrees"].values[0]) + "," + str(select_time["LongitudeDegrees"].values[0])
-        clipping_data = gt_data[gt_data["UnixTimeMillis"] <= (time * 1000 + mod)]
-
-        plot_gt(clipping_data) #正解のみの表示
-
-        components.html(
-        """<iframe src="https://www.google.com/maps/embed/v1/streetview?key="""+ KEY + 
-            """&location=""" + select_time_x_y + """
-            &heading=210
-            &pitch=10
-            &fov=35" 
-            width="800" height="600" style="border:0;" allowfullscreen></iframe>"""
-        ,height=600,
-        width=800
-        )
-    else:
-        st.subheader('gnss')
-        # データ取り出し
-        gnss = pd.read_csv(f"./data/test/{selected}_gnss.csv")
-        gnss_data = gnss_to_lat_lng(selected, gnss)
-        gnss_data["isGT"] = False
-        gnss_data["UnixTimeMillis"] = gnss_data["UnixTimeMillis"].div(1000).round()
-
-        first = int(gnss_data["UnixTimeMillis"][0])
-        end = int(gnss_data["UnixTimeMillis"][len(gnss_data)-1])
-
-        search_time = st.radio("Choose a search type",('text', 'slider'))
-        st.write('search_type: ', search_type)
-
-        if search_time=="text":
-            st.text('If you want to enter unit time, delete "ms".Example Original data 1619650832999 Input data 1619650832')
-            time = st.text_input('input unixtime', first)
         else:
-            time = st.slider(
-                'Please select unix time',
-                min_value=first,
-                max_value=end,
-                value=first,
+            st.subheader('gnss')
+            # データ取り出し
+            gnss = pd.read_csv(f"./data/test/{selected}_gnss.csv")
+            gnss_data = gnss_to_lat_lng(selected, gnss)
+            gnss_data["isGT"] = False
+            gnss_data["UnixTimeMillis"] = gnss_data["UnixTimeMillis"].div(1000).round()
+    
+            first = int(gnss_data["UnixTimeMillis"][0])
+            end = int(gnss_data["UnixTimeMillis"][len(gnss_data)-1])
+    
+            search_time = st.radio("Choose a search type",('text', 'slider'))
+            st.write('search_type: ', search_type)
+    
+            if search_time=="text":
+                st.text('If you want to enter unit time, delete "ms".Example Original data 1619650832999 Input data 1619650832')
+                time = st.text_input('input unixtime', first)
+            else:
+                time = st.slider(
+                    'Please select unix time',
+                    min_value=first,
+                    max_value=end,
+                    value=first,
+                )
+    
+            time = int(time)
+            data_time = datetime.datetime.fromtimestamp(time)
+            st.write('Time: ', data_time)
+    
+            select_time = gnss_data[gnss_data["UnixTimeMillis"] == time]
+            select_time_x_y = str(select_time["LatitudeDegrees"].values[0]) + "," + str(select_time["LongitudeDegrees"].values[0])
+            clipping_data = gnss_data[gnss_data["UnixTimeMillis"] <= time]
+    
+            plot_gt(clipping_data) #正解のみの表示
+    
+            components.html(
+            """<iframe src="https://www.google.com/maps/embed/v1/streetview?key="""+ KEY + 
+                """&location=""" + select_time_x_y + """
+                &heading=210
+                &pitch=10
+                &fov=35" 
+                width="800" height="600" style="border:0;" allowfullscreen></iframe>"""
+            ,height=600,
+            width=800
             )
-
-        time = int(time)
-        data_time = datetime.datetime.fromtimestamp(time)
-        st.write('Time: ', data_time)
-
-        select_time = gnss_data[gnss_data["UnixTimeMillis"] == time]
-        select_time_x_y = str(select_time["LatitudeDegrees"].values[0]) + "," + str(select_time["LongitudeDegrees"].values[0])
-        clipping_data = gnss_data[gnss_data["UnixTimeMillis"] <= time]
-
-        plot_gt(clipping_data) #正解のみの表示
-
-        components.html(
-        """<iframe src="https://www.google.com/maps/embed/v1/streetview?key="""+ KEY + 
-            """&location=""" + select_time_x_y + """
-            &heading=210
-            &pitch=10
-            &fov=35" 
-            width="800" height="600" style="border:0;" allowfullscreen></iframe>"""
-        ,height=600,
-        width=800
-        )
-
-    link = '[Smartphone Competition 2022 [Twitch Stream]](https://www.kaggle.com/code/robikscube/smartphone-competition-2022-twitch-stream)'
-    st.text('Code used for baseline ')
-    st.markdown(link, unsafe_allow_html=True)
+    
+        link = '[Smartphone Competition 2022 [Twitch Stream]](https://www.kaggle.com/code/robikscube/smartphone-competition-2022-twitch-stream)'
+        st.text('Code used for baseline ')
+        st.markdown(link, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
