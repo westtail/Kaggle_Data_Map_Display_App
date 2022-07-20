@@ -247,9 +247,52 @@ def main():
             tripId = st.sidebar.radio("select tripId", (tripIds))
             st.subheader(tripId)
             #print(tripId)
-            read_file = groups.get_group(tripId)
-            #print(type(read_file),read_file)
-            plot_file_data(read_file) #正解のみの表示
+            read_data = groups.get_group(tripId)
+
+            plot_file_data(read_data)
+
+            read_data["UnixTimeMillis"] = read_data["UnixTimeMillis"].div(1000).round().astype(int)
+            first = int(read_data.head(1)["UnixTimeMillis"])
+            end = int(read_data.tail(1)["UnixTimeMillis"])
+            st.dataframe(read_data)
+
+            search_type = st.radio("Choose a search type",('text', 'slider'))
+            st.write('search_type: ', search_type)
+            if search_type=="text":
+                st.text('If you want to enter unit time, delete "ms".Example Original data 1619650832999 Input data 1619650832')
+                time = st.text_input('input unixtime', first)
+            else:
+                time = st.slider(
+                    'Please select unix time',
+                    min_value=first,
+                    max_value=end,
+                    value=first,
+                )
+    
+            time = int(time)
+            data_time = datetime.datetime.fromtimestamp(time)
+            st.write('Time: ', data_time)
+    
+            select_time = read_data[read_data["UnixTimeMillis"] == time]
+            select_time_x_y = str(select_time["LatitudeDegrees"].values[0]) + "," + str(select_time["LongitudeDegrees"].values[0])
+            clipping_data = read_data[read_data["UnixTimeMillis"] <= time]
+    
+            plot_file_data(clipping_data)
+    
+            components.html(
+            """<iframe src="https://www.google.com/maps/embed/v1/streetview?key="""+ KEY + 
+                """&location=""" + select_time_x_y + """
+                &heading=210
+                &pitch=10
+                &fov=35" 
+                width="800" height="600" style="border:0;" allowfullscreen></iframe>"""
+            ,height=600,
+            width=800
+            )
+    
+            link = '[Smartphone Competition 2022 [Twitch Stream]](https://www.kaggle.com/code/robikscube/smartphone-competition-2022-twitch-stream)'
+            st.text('Code used for baseline ')
+            st.markdown(link, unsafe_allow_html=True)
             
         else:
             st.warning("need csv file only")
@@ -266,10 +309,8 @@ def main():
         else:
             if data_type == "train":
                 selected = st.sidebar.radio("select tripId", (train_name))
-                #selected = st.sidebar.selectbox('chose root ：',train_name)    
             else:
                 selected = st.sidebar.radio("select tripId", (test_name))
-                #selected = st.sidebar.selectbox('chose root ：',test_name)
         selected = selected.replace('/', '_')
 
         st.header(data_type)
