@@ -200,6 +200,16 @@ def plot_gt(clipping_data):
         zoom=10,
     )
 
+def plot_file_data(file_data):
+    # Plotting the route
+    visualize_traffic(
+        file_data,
+        lat_col="LatitudeDegrees",
+        lon_col="LongitudeDegrees",
+        color_col="tripId",
+        zoom=10,
+    )
+
 
 def load_data(select):
     data = pd.read_csv(select)
@@ -227,7 +237,22 @@ def main():
 
     if data_type == 'file':
         # ファイル提出
-        st.file_uploader("ファイルアップロード", type='csv')
+        uploaded_file = st.file_uploader("file upload", type='csv')
+        if uploaded_file is not None:
+            #read csv
+            read_file = pd.read_csv(uploaded_file)
+            tripIds = read_file["tripId"].unique()
+            groups = read_file.groupby(read_file.tripId)
+
+            tripId = st.sidebar.radio("select tripId", (tripIds))
+            st.subheader(tripId)
+            #print(tripId)
+            read_file = groups.get_group(tripId)
+            #print(type(read_file),read_file)
+            plot_file_data(read_file) #正解のみの表示
+            
+        else:
+            st.warning("need csv file only")
     else:
         # テキスト入力かリスト入力かを選択
         search_type = st.sidebar.radio("Choose a search type",('text', 'list'))
@@ -240,15 +265,11 @@ def main():
                 selected = st.sidebar.text_input('input tripID', test_name[0])
         else:
             if data_type == "train":
-                selected = st.sidebar.selectbox(
-                'chose root ：',
-                train_name
-                )    
+                selected = st.sidebar.radio("select tripId", (train_name))
+                #selected = st.sidebar.selectbox('chose root ：',train_name)    
             else:
-                selected = st.sidebar.selectbox(
-                'chose root ：',
-                test_name
-                )
+                selected = st.sidebar.radio("select tripId", (test_name))
+                #selected = st.sidebar.selectbox('chose root ：',test_name)
         selected = selected.replace('/', '_')
 
         st.header(data_type)
@@ -344,6 +365,8 @@ def main():
             select_time = gnss_data[gnss_data["UnixTimeMillis"] == time]
             select_time_x_y = str(select_time["LatitudeDegrees"].values[0]) + "," + str(select_time["LongitudeDegrees"].values[0])
             clipping_data = gnss_data[gnss_data["UnixTimeMillis"] <= time]
+
+            #print(type(clipping_data),clipping_data)
     
             plot_gt(clipping_data) #正解のみの表示
     
