@@ -127,27 +127,12 @@ def ecef_to_lat_lng(tripID, gnss_df, UnixTimeMillis):
         "WlsPositionYEcefMeters",
         "WlsPositionZEcefMeters",
     ]
-    # カラム設定
-    columns = ["utcTimeMillis"] + ecef_columns
-
-    #print(len(gnss_df))
-    #print(UnixTimeMillis,len(UnixTimeMillis))
-    # gnssデータの定義
-    ecef_df = (
-        gnss_df.drop_duplicates(subset="utcTimeMillis")[columns]
-        .dropna()
-        .reset_index(drop=True)
-    )
-    #print(ecef_df,len(ecef_df))
-
-    # numpy 変換
-    ecef = ECEF.from_numpy(ecef_df[ecef_columns].to_numpy())
-    # 複雑な計算
-    blh = ECEF_to_BLH(ecef)
-
-    # 時間をnumpy変換
-    TIME = ecef_df["utcTimeMillis"].to_numpy()
-    #print("time", TIME,len(TIME))
+    
+    columns = ["utcTimeMillis"] + ecef_columns # カラム設定
+    ecef_df = (gnss_df.drop_duplicates(subset="utcTimeMillis")[columns].dropna().reset_index(drop=True))# gnssデータの定義
+    ecef = ECEF.from_numpy(ecef_df[ecef_columns].to_numpy()) # numpy 変換
+    blh = ECEF_to_BLH(ecef)# 複雑な計算
+    TIME = ecef_df["utcTimeMillis"].to_numpy()# 時間をnumpy変換
 
     # v1 次元スプライン補間曲線を得られる関数
     lat = InterpolatedUnivariateSpline(TIME, blh.lat, ext=3)(UnixTimeMillis)
@@ -174,11 +159,7 @@ def plot_gt_vs_baseline(tripId):
     gt["tripId"] = tripId
 
     #データのコンバイン
-    combined = (
-        pd.concat([baseline, gt[baseline.columns]], axis=0)
-        .reset_index(drop=True)
-        .copy()
-    )
+    combined = (pd.concat([baseline, gt[baseline.columns]], axis=0).reset_index(drop=True).copy())
 
     # Plotting the route
     visualize_traffic(
@@ -232,50 +213,42 @@ def main():
     # サイドバー
     st.sidebar.subheader("input")
 
-    data_type = st.sidebar.radio("Choose data type",('train', 'test','file'))
-    st.sidebar.write('data_type: ', data_type)
+    data_type = st.sidebar.radio("Choose data type",('train', 'test', 'file'))
 
     if data_type == 'file':
-        # ファイル提出
-        uploaded_file = st.file_uploader("file upload", type='csv')
-        if uploaded_file is not None:
-            #read csv
-            read_file = pd.read_csv(uploaded_file)
-            tripIds = read_file["tripId"].unique()
-            groups = read_file.groupby(read_file.tripId)
+        uploaded_file = st.file_uploader("file upload", type='csv')# ファイル提出
 
+        if uploaded_file is not None:
+            read_file = pd.read_csv(uploaded_file) #read csv
+            tripIds = read_file["tripId"].unique()
             tripId = st.sidebar.radio("select tripId", (tripIds))
             st.subheader(tripId)
-            #print(tripId)
+
+            groups = read_file.groupby(read_file.tripId)
             read_data = groups.get_group(tripId)
 
             plot_file_data(read_data)
 
             read_data["UnixTimeMillis"] = read_data["UnixTimeMillis"].div(1000).round().astype(int)
-            first = int(read_data.head(1)["UnixTimeMillis"])
-            end = int(read_data.tail(1)["UnixTimeMillis"])
+            read_data = read_data.rename(columns={'UnixTimeMillis' : 'UnixTime'})
             st.dataframe(read_data)
+            first = int(read_data.head(1)["UnixTime"])
+            end = int(read_data.tail(1)["UnixTime"])
+            
 
             search_type = st.radio("Choose a search type",('text', 'slider'))
-            st.write('search_type: ', search_type)
             if search_type=="text":
-                st.text('If you want to enter unit time, delete "ms".Example Original data 1619650832999 Input data 1619650832')
+                st.warning("The original data is assumed to be UnixTimeMillis, but the input should be entered as UnixTime")
                 time = st.text_input('input unixtime', first)
             else:
-                time = st.slider(
-                    'Please select unix time',
-                    min_value=first,
-                    max_value=end,
-                    value=first,
-                )
-    
-            time = int(time)
+                time = st.slider('Please select unix time',min_value=first,max_value=end,value=first,)
+            time = int(time)#str to int
             data_time = datetime.datetime.fromtimestamp(time)
             st.write('Time: ', data_time)
     
-            select_time = read_data[read_data["UnixTimeMillis"] == time]
+            select_time = read_data[read_data["UnixTime"] == time]
             select_time_x_y = str(select_time["LatitudeDegrees"].values[0]) + "," + str(select_time["LongitudeDegrees"].values[0])
-            clipping_data = read_data[read_data["UnixTimeMillis"] <= time]
+            clipping_data = read_data[read_data["UnixTime"] <= time]
     
             plot_file_data(clipping_data)
     
@@ -286,20 +259,13 @@ def main():
                 &pitch=10
                 &fov=35" 
                 width="800" height="600" style="border:0;" allowfullscreen></iframe>"""
-            ,height=600,
-            width=800
+            ,height=600,width=800
             )
-    
-            link = '[Smartphone Competition 2022 [Twitch Stream]](https://www.kaggle.com/code/robikscube/smartphone-competition-2022-twitch-stream)'
-            st.text('Code used for baseline ')
-            st.markdown(link, unsafe_allow_html=True)
-            
         else:
             st.warning("need csv file only")
     else:
         # テキスト入力かリスト入力かを選択
         search_type = st.sidebar.radio("Choose a search type",('text', 'list'))
-        st.sidebar.write('search_type: ', search_type)
 
         if search_type == "text":
             if data_type == "train":
@@ -313,15 +279,14 @@ def main():
                 selected = st.sidebar.radio("select tripId", (test_name))
         selected = selected.replace('/', '_')
 
-        st.header(data_type)
-        st.header(selected)
+        st.header(data_type + " " +selected)
 
         if data_type == "train":
             st.subheader('gt + gnss')
             plot_gt_vs_baseline(selected) #ベースラインと正解の表示
     
-            # データ取り出し
-            gt = pd.read_csv(f"./data/train/{selected}_gt.csv")
+            
+            gt = pd.read_csv(f"./data/train/{selected}_gt.csv")# データ取り出し
             p = pd.DataFrame(
                 {
                     "tripId": selected,
@@ -334,33 +299,29 @@ def main():
             gt["tripId"] = selected
             gt["isGT"] = True
             gt_data = gt[p.columns].reset_index(drop=True).copy()
-    
-            mod = gt_data["UnixTimeMillis"][0] % 1000
-            first = int(gt_data["UnixTimeMillis"][0] / 1000)
-            end = int(gt_data["UnixTimeMillis"][len(gt_data)-1] / 1000)
+
+            gt_data["UnixTimeMillis"] =gt_data["UnixTimeMillis"].div(1000).round().astype(int)
+            gt_data = gt_data.rename(columns={'UnixTimeMillis' : 'UnixTime'})
+            st.dataframe(gt_data)
+            first = int(gt_data.head(1)["UnixTime"])
+            end = int(gt_data.tail(1)["UnixTime"])
     
             st.subheader('gt')
             search_time = st.radio("Choose a search type",('text', 'slider'))
-            st.write('search_type: ', search_type)
     
             if search_time=="text":
-                st.text('If you want to enter unit time, delete "ms".Example Original data 1619650832999 Input data 1619650832')
+                st.warning("The original data is assumed to be UnixTimeMillis, but the input should be entered as UnixTime")
                 time = st.text_input('input unixtime', first)
             else:
-                time = st.slider(
-                    'Please select unix time',
-                    min_value=first,
-                    max_value=end,
-                    value=first,
-                )
+                time = st.slider('Please select unix time',min_value=first,max_value=end,value=first,)
     
             time = int(time)
             data_time = datetime.datetime.fromtimestamp(time)
             st.write('Time: ', data_time)
     
-            select_time = gt_data[gt_data["UnixTimeMillis"] == (time * 1000 + mod)]
+            select_time = gt_data[gt_data["UnixTime"] == time]
             select_time_x_y = str(select_time["LatitudeDegrees"].values[0]) + "," + str(select_time["LongitudeDegrees"].values[0])
-            clipping_data = gt_data[gt_data["UnixTimeMillis"] <= (time * 1000 + mod)]
+            clipping_data = gt_data[gt_data["UnixTime"] <= time]
     
             plot_gt(clipping_data) #正解のみの表示
     
@@ -371,8 +332,7 @@ def main():
                 &pitch=10
                 &fov=35" 
                 width="800" height="600" style="border:0;" allowfullscreen></iframe>"""
-            ,height=600,
-            width=800
+            ,height=600,width=800
             )
         else:
             st.subheader('gnss')
@@ -380,34 +340,27 @@ def main():
             gnss = pd.read_csv(f"./data/test/{selected}_gnss.csv")
             gnss_data = gnss_to_lat_lng(selected, gnss)
             gnss_data["isGT"] = False
-            gnss_data["UnixTimeMillis"] = gnss_data["UnixTimeMillis"].div(1000).round()
-    
-            first = int(gnss_data["UnixTimeMillis"][0])
-            end = int(gnss_data["UnixTimeMillis"][len(gnss_data)-1])
+
+            gnss_data["UnixTimeMillis"] = gnss_data["UnixTimeMillis"].div(1000).round().astype(int)
+            gnss_data = gnss_data.rename(columns={'UnixTimeMillis' : 'UnixTime'})
+            first = int(gnss_data.head(1)["UnixTime"])
+            end = int(gnss_data.tail(1)["UnixTime"])
+            st.dataframe(gnss_data)
     
             search_time = st.radio("Choose a search type",('text', 'slider'))
-            st.write('search_type: ', search_type)
-    
             if search_time=="text":
-                st.text('If you want to enter unit time, delete "ms".Example Original data 1619650832999 Input data 1619650832')
+                st.warning("The original data is assumed to be UnixTimeMillis, but the input should be entered as UnixTime")
                 time = st.text_input('input unixtime', first)
             else:
-                time = st.slider(
-                    'Please select unix time',
-                    min_value=first,
-                    max_value=end,
-                    value=first,
-                )
+                time = st.slider('Please select unix time',min_value=first,max_value=end,value=first,)
     
             time = int(time)
             data_time = datetime.datetime.fromtimestamp(time)
             st.write('Time: ', data_time)
     
-            select_time = gnss_data[gnss_data["UnixTimeMillis"] == time]
+            select_time = gnss_data[gnss_data["UnixTime"] == time]
             select_time_x_y = str(select_time["LatitudeDegrees"].values[0]) + "," + str(select_time["LongitudeDegrees"].values[0])
-            clipping_data = gnss_data[gnss_data["UnixTimeMillis"] <= time]
-
-            #print(type(clipping_data),clipping_data)
+            clipping_data = gnss_data[gnss_data["UnixTime"] <= time]
     
             plot_gt(clipping_data) #正解のみの表示
     
@@ -421,10 +374,9 @@ def main():
             ,height=600,
             width=800
             )
-    
-        link = '[Smartphone Competition 2022 [Twitch Stream]](https://www.kaggle.com/code/robikscube/smartphone-competition-2022-twitch-stream)'
-        st.text('Code used for baseline ')
-        st.markdown(link, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
+    link = '[Smartphone Competition 2022 [Twitch Stream]](https://www.kaggle.com/code/robikscube/smartphone-competition-2022-twitch-stream)'
+    st.text('Code used for baseline ')
+    st.markdown(link, unsafe_allow_html=True)
